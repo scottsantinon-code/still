@@ -294,11 +294,14 @@ body[data-stage="meditation"] #end-med { opacity: 1; pointer-events: auto; }
 #moods {
   display: flex;
   align-items: center;
-  gap: 14px;
+  justify-content: center;
+  gap: clamp(6px, 2vw, 14px);
+  max-width: 100%;
 }
 #moods button {
-  width: 92px;
-  height: 92px;
+  width: clamp(54px, 16.5vw, 92px);
+  height: clamp(54px, 16.5vw, 92px);
+  flex-shrink: 0;
   border: none;
   background: transparent;
   display: flex;
@@ -310,6 +313,7 @@ body[data-stage="meditation"] #end-med { opacity: 1; pointer-events: auto; }
 }
 #moods button i {
   display: block;
+  aspect-ratio: 1;
   border-radius: 50%;
   background: radial-gradient(circle at 46% 42%,
     rgba(var(--glow), 0.55),
@@ -318,11 +322,11 @@ body[data-stage="meditation"] #end-med { opacity: 1; pointer-events: auto; }
     transparent 88%);
   transition: transform 900ms var(--ease);
 }
-#moods button:nth-child(1) i { width: 34px; height: 34px; opacity: 0.38; }
-#moods button:nth-child(2) i { width: 44px; height: 44px; opacity: 0.5; }
-#moods button:nth-child(3) i { width: 56px; height: 56px; opacity: 0.62; }
-#moods button:nth-child(4) i { width: 68px; height: 68px; opacity: 0.76; }
-#moods button:nth-child(5) i { width: 80px; height: 80px; opacity: 0.9; }
+#moods button:nth-child(1) i { width: 37%; opacity: 0.38; }
+#moods button:nth-child(2) i { width: 48%; opacity: 0.5; }
+#moods button:nth-child(3) i { width: 61%; opacity: 0.62; }
+#moods button:nth-child(4) i { width: 74%; opacity: 0.76; }
+#moods button:nth-child(5) i { width: 87%; opacity: 0.9; }
 #stage-mood.acked #moods button { opacity: 0; }
 #stage-mood.acked #moods button.picked { opacity: 1; }
 #stage-mood.acked #moods button.picked i { transform: scale(1.12); }
