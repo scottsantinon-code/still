@@ -1,0 +1,844 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0d13">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Still">
+<title>Still</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<style>
+:root {
+  --bg-top: #0a0d13;
+  --bg-mid: #0c111b;
+  --bg-bottom: #0e1620;
+  --ink: rgba(232, 238, 242, 0.78);
+  --ink-dim: rgba(232, 238, 242, 0.45);
+  --ink-faint: rgba(232, 238, 242, 0.28);
+  --glow: 150, 190, 215;
+  --ease: cubic-bezier(0.45, 0, 0.15, 1);
+  --fade: 1200ms;
+  --cue-fade: 1500ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --fade: 300ms; --cue-fade: 400ms; }
+}
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+html, body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+body {
+  background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 55%, var(--bg-bottom) 100%);
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: ui-serif, "New York", Georgia, "Iowan Old Style", "Times New Roman", serif;
+  font-weight: 300;
+  letter-spacing: 0.06em;
+  -webkit-font-smoothing: antialiased;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  opacity: 0;
+  transition: opacity 1800ms var(--ease);
+}
+body.awake { opacity: 1; }
+
+#grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8vmin;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--fade) var(--ease), visibility 0s linear var(--fade);
+  z-index: 10;
+}
+.stage.on {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--fade) var(--ease), visibility 0s;
+}
+
+/* ── stage 0 · idle ─────────────────────────────────────────── */
+#begin {
+  width: 230px;
+  height: 230px;
+  border: none;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 42%,
+    rgba(var(--glow), 0.16),
+    rgba(var(--glow), 0.05) 55%,
+    rgba(var(--glow), 0.0) 72%);
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 23px;
+  letter-spacing: 0.32em;
+  text-indent: 0.32em;
+  cursor: pointer;
+  animation: idle-pulse 6s var(--ease) infinite;
+}
+@keyframes idle-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.72; }
+  50%      { transform: scale(1.05); opacity: 1; }
+}
+
+/* ── shared bubble layer (breathing + meditation) ───────────── */
+#bubble {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: min(100vw, 100vh);
+  height: min(100vw, 100vh);
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity var(--fade) var(--ease);
+  pointer-events: none;
+  z-index: 5;
+}
+body[data-stage="breath"] #bubble,
+body[data-stage="meditation"] #bubble { opacity: 1; }
+body.paused #bubble { opacity: 0.55; }
+
+#bubble-drift { width: 100%; height: 100%; }
+#bubble-scale { width: 100%; height: 100%; will-change: transform; }
+
+.orb {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+.orb.o1 {
+  background: radial-gradient(circle at 44% 41%,
+    rgba(var(--glow), 0.20),
+    rgba(118, 158, 192, 0.10) 45%,
+    rgba(96, 138, 176, 0.035) 62%,
+    transparent 72%);
+  animation: spin 47s linear infinite;
+}
+.orb.o2 {
+  background: radial-gradient(circle at 58% 55%,
+    rgba(168, 200, 220, 0.14),
+    rgba(118, 158, 192, 0.07) 48%,
+    transparent 70%);
+  animation: spin 67s linear infinite reverse;
+}
+.orb.o3 {
+  background: radial-gradient(circle at 49% 61%,
+    rgba(140, 178, 205, 0.12),
+    rgba(105, 148, 185, 0.055) 50%,
+    transparent 71%);
+  animation: spin 89s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#glow {
+  position: absolute;
+  inset: 26%;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(212, 232, 242, 0.30),
+    rgba(160, 200, 222, 0.12) 46%,
+    transparent 70%);
+  filter: blur(8px);
+  opacity: 0.55;
+  will-change: opacity;
+}
+
+/* ── stage 1 · breathing ────────────────────────────────────── */
+#cue {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 27px;
+  letter-spacing: 0.4em;
+  text-indent: 0.4em;
+  color: var(--ink-faint);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 12;
+}
+#dots {
+  position: fixed;
+  left: 50%;
+  bottom: calc(10vh + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  gap: 22px;
+  z-index: 12;
+}
+#dots[hidden] { display: none; }
+#dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(232, 238, 242, 0.14);
+  transition: background 2000ms var(--ease);
+}
+#dots i.done { background: rgba(var(--glow), 0.55); }
+
+/* ── stage 2 · gratitude ────────────────────────────────────── */
+#gratitude {
+  max-width: 20em;
+  font-size: clamp(28px, 4.2vmin, 40px);
+  line-height: 1.75;
+  color: var(--ink);
+}
+#gratitude .w {
+  opacity: 0;
+  transition: opacity 1400ms var(--ease);
+}
+#gratitude.shown .w { opacity: 1; }
+
+/* ── stage 3 · meditation ───────────────────────────────────── */
+#med-progress {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(var(--glow), 0.55), rgba(196, 220, 234, 0.8));
+  box-shadow: 0 0 14px rgba(var(--glow), 0.45);
+  transform: scaleX(0);
+  transform-origin: left center;
+  opacity: 0;
+  transition: opacity var(--fade) var(--ease);
+  z-index: 12;
+}
+body[data-stage="meditation"] #med-progress { opacity: 1; }
+
+/* ── stage 4 · stats ────────────────────────────────────────── */
+#stat-main {
+  font-size: clamp(58px, 11vmin, 96px);
+  color: var(--ink);
+  letter-spacing: 0.04em;
+}
+#stat-sub {
+  margin-top: 30px;
+  font-size: 24px;
+  color: var(--ink-dim);
+}
+
+/* ── stage 5 · mood ─────────────────────────────────────────── */
+#mood-prompt {
+  font-size: 30px;
+  color: var(--ink-dim);
+  margin-bottom: 8vmin;
+}
+#moods {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+#moods button {
+  width: 92px;
+  height: 92px;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font: inherit;
+  transition: opacity 900ms var(--ease);
+}
+#moods button i {
+  display: block;
+  border-radius: 50%;
+  background: radial-gradient(circle at 46% 42%,
+    rgba(var(--glow), 0.55),
+    rgba(var(--glow), 0.22) 62%,
+    rgba(var(--glow), 0.06) 78%,
+    transparent 88%);
+  transition: transform 900ms var(--ease);
+}
+#moods button:nth-child(1) i { width: 34px; height: 34px; opacity: 0.38; }
+#moods button:nth-child(2) i { width: 44px; height: 44px; opacity: 0.5; }
+#moods button:nth-child(3) i { width: 56px; height: 56px; opacity: 0.62; }
+#moods button:nth-child(4) i { width: 68px; height: 68px; opacity: 0.76; }
+#moods button:nth-child(5) i { width: 80px; height: 80px; opacity: 0.9; }
+#stage-mood.acked #moods button { opacity: 0; }
+#stage-mood.acked #moods button.picked { opacity: 1; }
+#stage-mood.acked #moods button.picked i { transform: scale(1.12); }
+#stage-mood.acked #not-today { opacity: 0; }
+
+#not-today {
+  position: absolute;
+  right: calc(34px + env(safe-area-inset-right));
+  bottom: calc(34px + env(safe-area-inset-bottom));
+  min-width: 88px;
+  min-height: 88px;
+  border: none;
+  background: transparent;
+  color: var(--ink-faint);
+  font: inherit;
+  font-size: 19px;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  transition: opacity 900ms var(--ease);
+}
+</style>
+</head>
+<body data-stage="idle">
+
+<section id="stage-idle" class="stage">
+  <button id="begin" type="button">begin</button>
+</section>
+
+<div id="bubble" aria-hidden="true">
+  <div id="bubble-drift">
+    <div id="bubble-scale">
+      <div class="orb o1"></div>
+      <div class="orb o2"></div>
+      <div class="orb o3"></div>
+      <div id="glow"></div>
+    </div>
+  </div>
+</div>
+
+<section id="stage-breath" class="stage"></section>
+<div id="cue" aria-hidden="true"></div>
+<div id="dots" aria-hidden="true" hidden><i></i><i></i><i></i><i></i></div>
+
+<section id="stage-gratitude" class="stage">
+  <p id="gratitude"></p>
+</section>
+
+<section id="stage-meditation" class="stage"></section>
+<div id="med-progress" aria-hidden="true"></div>
+
+<section id="stage-stats" class="stage">
+  <div id="stat-main"></div>
+  <div id="stat-sub"></div>
+</section>
+
+<section id="stage-mood" class="stage">
+  <p id="mood-prompt">how are you today?</p>
+  <div id="moods">
+    <button type="button" data-rating="1"><i></i></button>
+    <button type="button" data-rating="2"><i></i></button>
+    <button type="button" data-rating="3"><i></i></button>
+    <button type="button" data-rating="4"><i></i></button>
+    <button type="button" data-rating="5"><i></i></button>
+  </div>
+  <button id="not-today" type="button">not today</button>
+</section>
+
+<div id="grain" aria-hidden="true"></div>
+
+<audio id="meditation" src="./meditation.mp3" preload="auto"></audio>
+
+<script>
+'use strict';
+
+/* ══════════════════════════ tuning ══════════════════════════ */
+const INHALE_MS = 4000;
+const EXHALE_MS = 6000;
+const BREATH_COUNT = 4;
+const GRATITUDE_MS = 15000;
+const MEDITATION_MS = 480000;
+const STATS_MS = 8000;
+const MOOD_ACK_MS = 1600;
+
+/* Add new lines here, one string per gratitude. */
+const GRATITUDES = [
+  "I did a psychology degree before medicine and that's helped me in innumerable unpredicted ways",
+];
+
+/*
+ * Firebase config — optional sync layer.
+ * Firebase console → Project settings → General → Your apps → SDK setup and
+ * configuration. Paste the config object values over these placeholders.
+ * While any value still starts with "YOUR_", Firebase is skipped entirely
+ * and the app runs local-only.
+ */
+const FIREBASE_CONFIG = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID",
+};
+
+/* ══════════════════════════ storage ═════════════════════════ */
+const store = (() => {
+  const DB_NAME = 'still-db';
+  let dbPromise = null;
+  let syncing = false;
+
+  function db() {
+    if (!dbPromise) {
+      dbPromise = new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => {
+          const d = req.result;
+          d.createObjectStore('sessions', { keyPath: 'id' });
+          d.createObjectStore('moods', { keyPath: 'id' });
+          d.createObjectStore('meta');
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+    return dbPromise;
+  }
+
+  function op(storeName, mode, fn) {
+    return db().then((d) => new Promise((resolve, reject) => {
+      const req = fn(d.transaction(storeName, mode).objectStore(storeName));
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    }));
+  }
+
+  const uuid = () => (crypto.randomUUID
+    ? crypto.randomUUID()
+    : String(Date.now()) + '-' + Math.random().toString(16).slice(2));
+
+  const dayKey = (t) => {
+    const d = new Date(t);
+    return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+  };
+
+  async function recordSession({ startedAt, completedAt, durationMs }) {
+    const rec = { id: uuid(), startedAt, completedAt, durationMs, synced: false };
+    await op('sessions', 'readwrite', (s) => s.put(rec));
+    syncPending();
+    return rec;
+  }
+
+  async function recordMood({ at, rating }) {
+    const rec = { id: uuid(), at, rating, synced: false };
+    await op('moods', 'readwrite', (s) => s.put(rec));
+    syncPending();
+    return rec;
+  }
+
+  async function getStats() {
+    const sessions = await op('sessions', 'readonly', (s) => s.getAll());
+    const totalSessions = sessions.length;
+    const totalMinutes = Math.round(
+      sessions.reduce((sum, s) => sum + (s.durationMs || 0), 0) / 60000);
+    const firstSessionAt = sessions.length
+      ? Math.min(...sessions.map((s) => s.startedAt)) : null;
+
+    const days = new Set(sessions.map((s) => dayKey(s.completedAt || s.startedAt)));
+    let streakDays = 0;
+    const cursor = new Date();
+    if (!days.has(dayKey(cursor))) cursor.setDate(cursor.getDate() - 1);
+    while (days.has(dayKey(cursor))) {
+      streakDays += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return { totalSessions, streakDays, totalMinutes, firstSessionAt };
+  }
+
+  async function syncPending() {
+    if (syncing || !window.__pushRecord) return;
+    syncing = true;
+    try {
+      for (const kind of ['sessions', 'moods']) {
+        const all = await op(kind, 'readonly', (s) => s.getAll());
+        for (const rec of all.filter((r) => !r.synced)) {
+          await window.__pushRecord(kind, rec);
+          rec.synced = true;
+          await op(kind, 'readwrite', (s) => s.put(rec));
+        }
+      }
+    } catch (err) {
+      console.warn('sync deferred:', err);
+    } finally {
+      syncing = false;
+    }
+  }
+
+  const getMeta = (key) => op('meta', 'readonly', (s) => s.get(key));
+  const setMeta = (key, val) => op('meta', 'readwrite', (s) => s.put(val, key));
+
+  return { recordSession, recordMood, getStats, syncPending, getMeta, setMeta };
+})();
+
+window.addEventListener('online', () => store.syncPending());
+store.syncPending();
+
+/* ══════════════════════════ app ═════════════════════════════ */
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const FADE = REDUCED ? 300 : 1200;
+const GAP = REDUCED ? 120 : 500;
+const BREATH_EASE = 'cubic-bezier(0.45, 0, 0.2, 1)';
+const SCALE_MIN = 0.30;
+const SCALE_MAX = 0.90;
+
+const $ = (id) => document.getElementById(id);
+const stages = {
+  idle: $('stage-idle'),
+  breath: $('stage-breath'),
+  gratitude: $('stage-gratitude'),
+  meditation: $('stage-meditation'),
+  stats: $('stage-stats'),
+  mood: $('stage-mood'),
+};
+const audio = $('meditation');
+const bubbleScale = $('bubble-scale');
+const glow = $('glow');
+const cue = $('cue');
+const dotsWrap = $('dots');
+const dots = [...dotsWrap.children];
+
+let stage = 'idle';
+let stageToken = 0;
+let stageTimer = null;
+let sessionStart = null;
+let audioCtx = null;
+let wakeLock = null;
+const med = { active: false, usingAudio: false, paused: false, elapsed: 0, lastTick: 0, dur: MEDITATION_MS, done: false };
+
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* ── wake lock ── */
+async function acquireWakeLock() {
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+  } catch (err) {
+    console.warn('wake lock unavailable:', err);
+  }
+}
+function releaseWakeLock() {
+  try { if (wakeLock) wakeLock.release(); } catch (err) { /* fine */ }
+  wakeLock = null;
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && sessionStart) acquireWakeLock();
+});
+
+/* ── audio unlock: must run inside the begin tap ── */
+function unlockAudio() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    audioCtx.resume();
+  } catch (err) { console.warn(err); }
+  try {
+    audio.load();
+    audio.muted = true;
+    const p = audio.play();
+    if (p) p.then(() => {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.muted = false;
+    }).catch((err) => {
+      audio.muted = false;
+      console.warn('audio unlock:', err);
+    });
+  } catch (err) { console.warn(err); }
+}
+
+/* ── stage transitions: fade out, a beat of darkness, fade in ── */
+async function goTo(next) {
+  const token = ++stageToken;
+  clearTimeout(stageTimer);
+  const leaving = stage;
+  stage = 'transition';
+  stages[leaving].classList.remove('on');
+  if (leaving === 'breath' || next === 'breath') dotsWrap.hidden = true;
+  document.body.dataset.stage = 'between'; // bubble + progress fade out with the old stage
+  await wait(FADE + GAP);
+  if (token !== stageToken) return;
+  document.body.dataset.stage = next; // …and back in with the new one
+  stage = next;
+  stages[next].classList.add('on');
+  enterStage[next](token);
+}
+
+/* ── stage 1 · breathing ── */
+function breathPhase(from, to, glowFrom, glowTo, ms) {
+  glow.animate(
+    [{ opacity: glowFrom }, { opacity: glowTo }],
+    { duration: ms, easing: BREATH_EASE, fill: 'forwards' });
+  cue.animate(
+    [{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 1, offset: 0.65 }, { opacity: 0 }],
+    { duration: ms, easing: 'ease-in-out', fill: 'forwards' });
+  const anim = bubbleScale.animate(
+    [{ transform: `scale(${from})` }, { transform: `scale(${to})` }],
+    { duration: ms, easing: BREATH_EASE, fill: 'forwards' });
+  return anim.finished.catch(() => {});
+}
+
+async function runBreathing(token) {
+  dots.forEach((d) => d.classList.remove('done'));
+  dotsWrap.hidden = false;
+  bubbleScale.style.transform = `scale(${SCALE_MIN})`;
+  await wait(400);
+  for (let i = 0; i < BREATH_COUNT; i += 1) {
+    if (token !== stageToken) return;
+    cue.textContent = 'in';
+    await breathPhase(SCALE_MIN, SCALE_MAX, 0.5, 1, INHALE_MS);
+    if (token !== stageToken) return;
+    cue.textContent = 'out';
+    await breathPhase(SCALE_MAX, SCALE_MIN, 1, 0.5, EXHALE_MS);
+    if (token !== stageToken) return;
+    dots[i].classList.add('done');
+  }
+  await wait(800);
+  if (token === stageToken) goTo('gratitude');
+}
+
+/* ── stage 2 · gratitude ── */
+async function runGratitude(token) {
+  let index = 0;
+  if (GRATITUDES.length > 1) {
+    const last = await store.getMeta('lastGratitudeIndex').catch(() => null);
+    do {
+      index = Math.floor(Math.random() * GRATITUDES.length);
+    } while (index === last);
+  }
+  store.setMeta('lastGratitudeIndex', index).catch(() => {});
+
+  const el = $('gratitude');
+  el.classList.remove('shown');
+  el.innerHTML = '';
+  GRATITUDES[index].split(' ').forEach((word, i) => {
+    const span = document.createElement('span');
+    span.className = 'w';
+    span.textContent = word + ' ';
+    span.style.transitionDelay = REDUCED ? '0ms' : `${i * 110}ms`;
+    el.appendChild(span);
+  });
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (token === stageToken) el.classList.add('shown');
+  }));
+  stageTimer = setTimeout(() => { if (token === stageToken) goTo('meditation'); }, GRATITUDE_MS);
+}
+
+/* ── stage 3 · meditation ── */
+async function runMeditation(token) {
+  Object.assign(med, {
+    active: true, usingAudio: false, paused: false,
+    elapsed: 0, lastTick: performance.now(), dur: MEDITATION_MS, done: false,
+  });
+  bubbleScale.getAnimations().forEach((a) => a.cancel());
+  bubbleScale.style.transform = 'scale(0.5)';
+  if (!REDUCED) {
+    bubbleScale.animate(
+      [
+        { transform: 'scale(0.5) translate(0%, 0%)' },
+        { transform: 'scale(0.53) translate(1.5%, -1%)' },
+        { transform: 'scale(0.49) translate(-1%, 1.5%)' },
+        { transform: 'scale(0.52) translate(0.5%, 0.5%)' },
+        { transform: 'scale(0.5) translate(0%, 0%)' },
+      ],
+      { duration: 60000, easing: 'ease-in-out', iterations: Infinity });
+    glow.animate(
+      [{ opacity: 0.5 }, { opacity: 0.75 }, { opacity: 0.45 }, { opacity: 0.65 }, { opacity: 0.5 }],
+      { duration: 45000, easing: 'ease-in-out', iterations: Infinity });
+  }
+
+  try {
+    audio.currentTime = 0;
+    audio.muted = false;
+    await audio.play();
+    med.usingAudio = true;
+    if (isFinite(audio.duration) && audio.duration > 0) med.dur = audio.duration * 1000;
+  } catch (err) {
+    console.warn('meditation audio failed, silent timer instead:', err);
+  }
+  med.lastTick = performance.now();
+  requestAnimationFrame(function tick(now) {
+    if (token !== stageToken || med.done) return;
+    if (med.usingAudio && audio.error) {
+      console.warn('audio error mid-play, continuing on timer');
+      med.elapsed = Math.max(med.elapsed, (audio.currentTime || 0) * 1000);
+      med.usingAudio = false;
+    }
+    if (med.usingAudio) {
+      med.elapsed = audio.currentTime * 1000;
+      if (isFinite(audio.duration) && audio.duration > 0) med.dur = audio.duration * 1000;
+    } else if (!med.paused) {
+      med.elapsed += now - med.lastTick;
+    }
+    med.lastTick = now;
+    $('med-progress').style.transform = `scaleX(${Math.min(1, med.elapsed / med.dur)})`;
+    if (med.elapsed >= med.dur) { finishMeditation(token); return; }
+    requestAnimationFrame(tick);
+  });
+}
+
+audio.addEventListener('ended', () => {
+  if (stage === 'meditation' && med.active) finishMeditation(stageToken);
+});
+
+function toggleMeditationPause() {
+  if (!med.active || med.done) return;
+  med.paused = !med.paused;
+  document.body.classList.toggle('paused', med.paused);
+  if (med.usingAudio) {
+    if (med.paused) audio.pause();
+    else audio.play().catch((err) => {
+      console.warn('resume failed, continuing on timer:', err);
+      med.usingAudio = false;
+    });
+  }
+}
+
+async function finishMeditation(token) {
+  if (med.done || token !== stageToken) return;
+  med.done = true;
+  med.active = false;
+  document.body.classList.remove('paused');
+  audio.pause();
+  const now = Date.now();
+  try {
+    await store.recordSession({
+      startedAt: sessionStart || now,
+      completedAt: now,
+      durationMs: now - (sessionStart || now),
+    });
+  } catch (err) {
+    console.warn('recordSession failed:', err);
+  }
+  goTo('stats');
+}
+
+/* ── stage 4 · stats ── */
+async function runStats(token) {
+  let stats = { totalSessions: 1, streakDays: 0, totalMinutes: 0 };
+  try { stats = await store.getStats(); } catch (err) { console.warn(err); }
+  if (token !== stageToken) return;
+  $('stat-main').textContent =
+    stats.totalSessions === 1 ? '1 session' : `${stats.totalSessions} sessions`;
+  $('stat-sub').textContent = stats.streakDays >= 2
+    ? `${stats.streakDays} consecutive days`
+    : `${stats.totalMinutes} ${stats.totalMinutes === 1 ? 'minute' : 'minutes'} practised`;
+  stageTimer = setTimeout(() => { if (token === stageToken) goTo('mood'); }, STATS_MS);
+}
+
+/* ── stage 5 · mood ── */
+function runMood() {
+  stages.mood.classList.remove('acked');
+  [...document.querySelectorAll('#moods button')].forEach((b) => b.classList.remove('picked'));
+}
+
+document.querySelectorAll('#moods button').forEach((btn) => {
+  btn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (stage !== 'mood') return;
+    const token = stageToken;
+    btn.classList.add('picked');
+    stages.mood.classList.add('acked');
+    try {
+      await store.recordMood({ at: Date.now(), rating: Number(btn.dataset.rating) });
+    } catch (err) { console.warn('recordMood failed:', err); }
+    await wait(MOOD_ACK_MS);
+    if (token === stageToken) endSession();
+  });
+});
+$('not-today').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (stage === 'mood') endSession();
+});
+
+function endSession() {
+  sessionStart = null;
+  releaseWakeLock();
+  goTo('idle');
+}
+
+/* ── entry points ── */
+const enterStage = {
+  idle: () => {},
+  breath: runBreathing,
+  gratitude: runGratitude,
+  meditation: runMeditation,
+  stats: runStats,
+  mood: runMood,
+};
+
+$('begin').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (stage !== 'idle') return;
+  sessionStart = Date.now();
+  unlockAudio();      // the one user gesture — everything audio hangs off it
+  acquireWakeLock();
+  goTo('breath');
+});
+
+/* single tap anywhere: advance early, except during breathing */
+document.addEventListener('click', () => {
+  if (stage === 'gratitude') goTo('meditation');
+  else if (stage === 'meditation') toggleMeditationPause();
+  else if (stage === 'stats') goTo('mood');
+});
+
+/* ── boot ── */
+stages.idle.classList.add('on');
+requestAnimationFrame(() => document.body.classList.add('awake'));
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js', { scope: './' })
+    .catch((err) => console.warn('sw registration failed:', err));
+}
+</script>
+
+<script type="module">
+/* Firebase sync layer. Fully optional: any failure here is invisible. */
+(async () => {
+  try {
+    if (!FIREBASE_CONFIG || Object.values(FIREBASE_CONFIG).some((v) => String(v).startsWith('YOUR_'))) {
+      console.info('Firebase config is placeholder — running local-only.');
+      return;
+    }
+    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
+    const { getAuth, signInAnonymously, onAuthStateChanged } =
+      await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js');
+    const { getFirestore, doc, setDoc } =
+      await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+
+    const app = initializeApp(FIREBASE_CONFIG);
+    const auth = getAuth(app);
+    const fs = getFirestore(app);
+
+    // Anonymous auth persists in IndexedDB by default, so the tablet keeps its uid.
+    const uid = await new Promise((resolve, reject) => {
+      onAuthStateChanged(auth, (user) => {
+        if (user) resolve(user.uid);
+        else signInAnonymously(auth).catch(reject);
+      });
+    });
+
+    window.__pushRecord = async (kind, rec) => {
+      const { synced, id, ...data } = rec;
+      await setDoc(doc(fs, 'users', uid, kind, id), data);
+    };
+    store.syncPending();
+  } catch (err) {
+    console.warn('Firebase disabled:', err);
+  }
+})();
+</script>
+</body>
+</html>
