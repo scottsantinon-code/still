@@ -1,6 +1,6 @@
 /* Still — service worker. Bump CACHE when any precached file changes
    (including swapping meditation.mp3). */
-const CACHE = 'still-v3';
+const CACHE = 'still-v4';
 const ASSETS = [
   './',
   './index.html',

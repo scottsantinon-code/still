@@ -249,6 +249,26 @@ body.paused #bubble { opacity: 0.55; }
 }
 body[data-stage="meditation"] #med-progress { opacity: 1; }
 
+#end-med {
+  position: fixed;
+  top: calc(30px + env(safe-area-inset-top));
+  right: calc(30px + env(safe-area-inset-right));
+  min-width: 88px;
+  min-height: 88px;
+  border: none;
+  background: transparent;
+  color: var(--ink-faint);
+  font: inherit;
+  font-size: 19px;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--fade) var(--ease);
+  z-index: 13;
+}
+body[data-stage="meditation"] #end-med { opacity: 1; pointer-events: auto; }
+
 /* ── stage 4 · stats ────────────────────────────────────────── */
 #stat-main {
   font-size: clamp(58px, 11vmin, 96px);
@@ -353,6 +373,7 @@ body[data-stage="meditation"] #med-progress { opacity: 1; }
 
 <section id="stage-meditation" class="stage"></section>
 <div id="med-progress" aria-hidden="true"><div id="med-fill"></div></div>
+<button id="end-med" type="button">end</button>
 
 <section id="stage-stats" class="stage">
   <div id="stat-main"></div>
@@ -714,7 +735,7 @@ function toggleMeditationPause() {
   }
 }
 
-async function finishMeditation(token) {
+async function finishMeditation(token, next = 'stats') {
   if (med.done || token !== stageToken) return;
   med.done = true;
   med.active = false;
@@ -730,8 +751,15 @@ async function finishMeditation(token) {
   } catch (err) {
     console.warn('recordSession failed:', err);
   }
-  goTo('stats');
+  goTo(next);
 }
+
+$('end-med').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (stage === 'meditation' && med.active && !med.done) {
+    finishMeditation(stageToken, 'mood'); // ended early: still counts, straight to the survey
+  }
+});
 
 /* ── stage 4 · stats ── */
 async function runStats(token) {
