@@ -46,10 +46,10 @@ everything; after that it runs with no network.
 3. Commit and push. On the tablet, open the app once while online and give it
    a few seconds to re-download, then it's cached for offline again.
 
-The meditation stage takes its duration from the audio file itself, so the
-replacement doesn't have to be exactly 8 minutes. If the audio fails to load
-for any reason, the stage falls back to a silent 8-minute timer
-(`MEDITATION_MS` in `index.html`).
+The meditation stage always runs for 8 minutes (`MEDITATION_MS` in
+`index.html`), whatever the length of the audio. A shorter track ends early
+and the rest of the stage is silence; if the audio fails to load entirely,
+the stage runs as a silent 8-minute timer.
 
 ## Tuning
 

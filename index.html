@@ -19,7 +19,7 @@
   --ink: rgba(232, 238, 242, 0.78);
   --ink-dim: rgba(232, 238, 242, 0.45);
   --ink-faint: rgba(232, 238, 242, 0.28);
-  --glow: 150, 190, 215;
+  --glow: 155, 196, 228;
   --ease: cubic-bezier(0.45, 0, 0.15, 1);
   --fade: 1200ms;
   --cue-fade: 1500ms;
@@ -45,9 +45,9 @@ body {
   background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 55%, var(--bg-bottom) 100%);
   background-attachment: fixed;
   color: var(--ink);
-  font-family: ui-serif, "New York", Georgia, "Iowan Old Style", "Times New Roman", serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, "Helvetica Neue", sans-serif;
   font-weight: 300;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.02em;
   -webkit-font-smoothing: antialiased;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   opacity: 0;
@@ -96,7 +96,8 @@ body.awake { opacity: 1; }
     rgba(var(--glow), 0.0) 72%);
   color: var(--ink-dim);
   font: inherit;
-  font-size: 23px;
+  font-size: 22px;
+  font-weight: 300;
   letter-spacing: 0.32em;
   text-indent: 0.32em;
   cursor: pointer;
@@ -203,10 +204,20 @@ body.paused #bubble { opacity: 0.55; }
 #dots i.done { background: rgba(var(--glow), 0.55); }
 
 /* ── stage 2 · gratitude ────────────────────────────────────── */
+#gratitude-title {
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0.38em;
+  text-indent: 0.38em;
+  color: var(--ink-faint);
+  margin-bottom: 6vmin;
+}
 #gratitude {
   max-width: 20em;
   font-size: clamp(28px, 4.2vmin, 40px);
-  line-height: 1.75;
+  font-weight: 300;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
   color: var(--ink);
 }
 #gratitude .w {
@@ -218,29 +229,39 @@ body.paused #bubble { opacity: 0.55; }
 /* ── stage 3 · meditation ───────────────────────────────────── */
 #med-progress {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 3px;
-  background: linear-gradient(90deg, rgba(var(--glow), 0.55), rgba(196, 220, 234, 0.8));
-  box-shadow: 0 0 14px rgba(var(--glow), 0.45);
-  transform: scaleX(0);
-  transform-origin: left center;
+  left: max(28px, env(safe-area-inset-left));
+  right: max(28px, env(safe-area-inset-right));
+  bottom: calc(30px + env(safe-area-inset-bottom));
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(232, 238, 242, 0.09);
+  box-shadow: 0 0 32px rgba(var(--glow), 0.22);
   opacity: 0;
   transition: opacity var(--fade) var(--ease);
   z-index: 12;
+}
+#med-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(var(--glow), 0.85), rgba(206, 230, 245, 0.95));
+  box-shadow: 0 0 22px rgba(var(--glow), 0.75);
 }
 body[data-stage="meditation"] #med-progress { opacity: 1; }
 
 /* ── stage 4 · stats ────────────────────────────────────────── */
 #stat-main {
   font-size: clamp(58px, 11vmin, 96px);
+  font-weight: 200;
   color: var(--ink);
-  letter-spacing: 0.04em;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
 }
 #stat-sub {
-  margin-top: 30px;
-  font-size: 24px;
+  margin-top: 28px;
+  font-size: 23px;
+  font-weight: 300;
+  letter-spacing: 0.08em;
   color: var(--ink-dim);
 }
 
@@ -326,11 +347,12 @@ body[data-stage="meditation"] #med-progress { opacity: 1; }
 <div id="dots" aria-hidden="true" hidden><i></i><i></i><i></i><i></i></div>
 
 <section id="stage-gratitude" class="stage">
+  <p id="gratitude-title">gratitude</p>
   <p id="gratitude"></p>
 </section>
 
 <section id="stage-meditation" class="stage"></section>
-<div id="med-progress" aria-hidden="true"></div>
+<div id="med-progress" aria-hidden="true"><div id="med-fill"></div></div>
 
 <section id="stage-stats" class="stage">
   <div id="stat-main"></div>
@@ -663,43 +685,30 @@ async function runMeditation(token) {
     audio.muted = false;
     await audio.play();
     med.usingAudio = true;
-    if (isFinite(audio.duration) && audio.duration > 0) med.dur = audio.duration * 1000;
   } catch (err) {
     console.warn('meditation audio failed, silent timer instead:', err);
   }
+  // The stage always runs the full MEDITATION_MS; a shorter audio track
+  // simply ends early and the remainder is silence.
   med.lastTick = performance.now();
   requestAnimationFrame(function tick(now) {
     if (token !== stageToken || med.done) return;
-    if (med.usingAudio && audio.error) {
-      console.warn('audio error mid-play, continuing on timer');
-      med.elapsed = Math.max(med.elapsed, (audio.currentTime || 0) * 1000);
-      med.usingAudio = false;
-    }
-    if (med.usingAudio) {
-      med.elapsed = audio.currentTime * 1000;
-      if (isFinite(audio.duration) && audio.duration > 0) med.dur = audio.duration * 1000;
-    } else if (!med.paused) {
-      med.elapsed += now - med.lastTick;
-    }
+    if (!med.paused) med.elapsed += now - med.lastTick;
     med.lastTick = now;
-    $('med-progress').style.transform = `scaleX(${Math.min(1, med.elapsed / med.dur)})`;
+    $('med-fill').style.width = `${Math.min(100, (med.elapsed / med.dur) * 100)}%`;
     if (med.elapsed >= med.dur) { finishMeditation(token); return; }
     requestAnimationFrame(tick);
   });
 }
 
-audio.addEventListener('ended', () => {
-  if (stage === 'meditation' && med.active) finishMeditation(stageToken);
-});
-
 function toggleMeditationPause() {
   if (!med.active || med.done) return;
   med.paused = !med.paused;
   document.body.classList.toggle('paused', med.paused);
-  if (med.usingAudio) {
+  if (med.usingAudio && !audio.ended) {
     if (med.paused) audio.pause();
     else audio.play().catch((err) => {
-      console.warn('resume failed, continuing on timer:', err);
+      console.warn('resume failed, continuing in silence:', err);
       med.usingAudio = false;
     });
   }
